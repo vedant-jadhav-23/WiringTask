@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WIRING SABOTAGE: Circuit Calibration</title>
+  <style>
+    /* Exact O2 Sabotage Color Palette & Variables */
+    :root {
+      --bg: #07090e;
+      --panel-bg: #0f141c;
+      --card-bg: #151b26;
+      --border: #232d3f;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --cyan: #38bdf8;
+      --yellow: #facc15;
+      --rose: #fb7185;
+      --red: #ef4444;
+      --green: #22c55e;
+      --font-mono: "Courier New", Courier, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    /* Breach Emergency Banner */
+    .banner {
+      width: 100%;
+      max-width: 1100px;
+      background: #380808;
+      border: 2px solid var(--red);
+      color: var(--red);
+      padding: 12px;
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      animation: alertPulse 1.2s infinite alternate;
+      position: relative;
+      z-index: 20;
+    }
+
+    @keyframes alertPulse {
+      0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); border-color: #7f1d1d; }
+      100% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.9); border-color: var(--red); }
+    }
+
+    /* Top Command Header */
+    .top-bar {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .btn-group { display: flex; gap: 10px; }
+
+    button {
+      background: #1e293b;
+      color: var(--cyan);
+      border: 1px solid var(--border);
+      padding: 9px 18px;
+      font-family: var(--font-mono);
+      font-weight: bold;
+      font-size: 0.95rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    button:hover {
+      background: #334155;
+      border-color: #64748b;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #resetBtn {
+      background: var(--yellow);
+      color: #000;
+      border-color: #ca8a04;
+    }
+    #resetBtn:hover { background: #eab308; }
+
+    .header-badges { display: flex; align-items: center; gap: 12px; }
+
+    .status-badge {
+      font-size: 0.9rem;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 4px;
+      background: #111827;
+    }
+    .status-disconnected { color: var(--red); border: 1px solid var(--red); }
+    .status-connected { color: var(--green); border: 1px solid var(--green); }
+
+    /* Main Console Layout */
+    .terminal-container {
+      width: 100%;
+      max-width: 1100px;
+      background: var(--panel-bg);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    #wireCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 44%;
+      z-index: 20;
+    }
+
+    /* Scenario/Question Boxes */
+    .row {
+      background: #090d14;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 85px;
+    }
+
+    .col-left .row { flex-direction: row; }
+    .col-right .row { flex-direction: row-reverse; }
+
+    .content-box {
+      flex-grow: 1;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      color: #94a3b8;
+    }
+    
+    .col-left .content-box { font-weight: normal; }
+    .col-right .content-box { 
+      text-align: right; 
+      color: var(--text); 
+      font-weight: bold; 
+      font-size: 1.1rem;
+    }
+
+    /* Physical Wire Nodes (Industrial look) */
+    .node {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 3px solid #475569;
+      position: relative;
+      flex-shrink: 0;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+      margin: 0 10px;
+    }
+
+    /* Node Centers */
+    .node::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #0f141c;
+    }
+
+    /* Left Node Colors */
+    .col-left .row:nth-child(1) .node { border-color: var(--red); background: #451a1a; }
+    .col-left .row:nth-child(2) .node { border-color: var(--cyan); background: #164e63; }
+    .col-left .row:nth-child(3) .node { border-color: var(--yellow); background: #422006; }
+    .col-left .row:nth-child(4) .node { border-color: var(--rose); background: #4c1d95; }
+
+    /* Right Node (Receivers) Active State */
+    .col-right .node.active { 
+      border-color: var(--green); 
+      background: #14532d;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+    }
+    .col-right .node.active::after { background: var(--green); }
+
+    /* Win Overlay */
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(7, 9, 14, 0.96);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 8px;
+      z-index: 50;
+    }
+
+    .overlay.active { display: flex; }
+
+    .overlay h1 {
+      font-size: 3.2rem;
+      color: var(--green);
+      text-shadow: 0 0 25px rgba(34, 197, 94, 0.8);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sabotage Header Banner -->
+  <div class="banner" id="alertBanner">
+    CRITICAL SABOTAGE: MAIN CIRCUIT BOARD DISCONNECTED
+  </div>
+
+  <div class="top-bar">
+    <div class="btn-group">
+      <button id="resetBtn">NEXT CREWMATE</button>
+      <button id="connectBtn">CONNECT ESP32/ARDUINO</button>
+    </div>
+    <div class="header-badges">
+      <div class="status-badge status-disconnected" id="connStatus">HARDWARE DISCONNECTED</div>
+    </div>
+  </div>
+
+  <div class="terminal-container" id="board">
+    <!-- SVG Canvas for physical wires -->
+    <svg id="wireCanvas"></svg>
+
+    <!-- Success Victory Overlay -->
+    <div class="overlay" id="winOverlay">
+      <h1>CIRCUIT RESTORED</h1>
+      <button id="nextBtn" style="background: var(--green); color: #000; font-size: 1.1rem; padding: 12px 28px; border: none;">CALIBRATE NEXT SECTOR</button>
+    </div>
+
+    <!-- Left Column: Questions -->
+    <div class="column col-left" id="colLeft"></div>
+
+    <!-- Right Column: Answers -->
+    <div class="column col-right" id="colRight"></div>
+  </div>
+
+  <script>
+    // ---------------------------------------------------------
+    // 1. QUESTION BANK
+    // ---------------------------------------------------------
+    const questionBank = [
+      { id: 1, q: "Node A: 7A entering, 3A leaving. What is the unknown current?", a: "4A leaving" },
+      { id: 2, q: "Node B: 2A entering, 5A entering, 1A leaving. Unknown?", a: "6A leaving" },
+      { id: 3, q: "Series loop: 12V source. R1 drops 7V. Drop across R2?", a: "5V" },
+      { id: 4, q: "Loop: 9V source. Resistors drop 3V and 2V. Remaining drop?", a: "4V" },
+      { id: 5, q: "Current flowing through a 5Ω resistor with a 20V drop.", a: "4A" },
+      { id: 6, q: "Voltage required to push 3A of current through a 6Ω resistor.", a: "18V" },
+      { id: 7, q: "Power dissipated by a 10Ω resistor carrying 2A.", a: "40W" },
+      { id: 8, q: "Power dissipated by a 5Ω resistor with 10V across it.", a: "20W" },
+      { id: 9, q: "Equivalent resistance of two 12Ω resistors in parallel.", a: "6Ω" },
+      { id: 10, q: "A 4Ω and 6Ω resistor in series, parallel to a 10Ω resistor.", a: "5Ω" },
+      { id: 11, q: "Three 9Ω resistors connected in parallel.", a: "3Ω" },
+      { id: 12, q: "Resistance of a component drawing 2A from a 24V supply.", a: "12Ω" }
+    ];
+
+    const colors = ["#ef4444", "#38bdf8", "#facc15", "#fb7185"]; 
+
+    let currentTask = [];       
+    let shuffledAnswers = [];   
+    let correctMap = {};        
+    let activeConnections = {}; 
+
+    // ---------------------------------------------------------
+    // 2. LOGIC & UI GENERATION
+    // ---------------------------------------------------------
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generateTask() {
+      // Hard reset connections until Arduino sends new data
+      activeConnections = {};
+      correctMap = {};
+      
+      document.getElementById('winOverlay').classList.remove('active');
+      
+      const banner = document.getElementById('alertBanner');
+      banner.style.background = "#380808";
+      banner.style.borderColor = "var(--red)";
+      banner.style.color = "var(--red)";
+      banner.innerText = "CRITICAL SABOTAGE: MAIN CIRCUIT BOARD DISCONNECTED";
+
+      // Select 4 random questions
+      const shuffledBank = shuffleArray(questionBank);
+      currentTask = shuffledBank.slice(0, 4);
+
+      // Shuffle Answers
+      let answersList = currentTask.map((q, index) => ({ originalIndex: index, text: q.a }));
+      shuffledAnswers = shuffleArray(answersList);
+
+      // Map correct connections (0-3 Left index to 0-3 Right index)
+      currentTask.forEach((q, leftIdx) => {
+        const rightIdx = shuffledAnswers.findIndex(ans => ans.originalIndex === leftIdx);
+        correctMap[leftIdx] = rightIdx;
+      });
+
+      renderUI();
+      drawWires();
+    }
+
+    function renderUI() {
+      const colLeft = document.getElementById('colLeft');
+      const colRight = document.getElementById('colRight');
+      colLeft.innerHTML = '';
+      colRight.innerHTML = '';
+
+      currentTask.forEach((q, i) => {
+        colLeft.innerHTML += `
+          <div class="row">
+            <div class="content-box">[PORT 0${i+1}] ${q.q}</div>
+            <div class="node left-node" id="L${i}"></div>
+          </div>
+        `;
+      });
+
+      shuffledAnswers.forEach((a, i) => {
+        colRight.innerHTML += `
+          <div class="row">
+            <div class="content-box">${a.text}</div>
+            <div class="node right-node" id="R${i}"></div>
+          </div>
+        `;
+      });
+    }
+
+    // ---------------------------------------------------------
+    // 3. SVG WIRE DRAWING (Hardware-Driven Only)
+    // ---------------------------------------------------------
+    function drawWires() {
+      const svg = document.getElementById('wireCanvas');
+      svg.innerHTML = ''; 
+      const boardRect = document.getElementById('board').getBoundingClientRect();
+
+      for (let leftIdx = 0; leftIdx < 4; leftIdx++) {
+        if (activeConnections[leftIdx] !== undefined) {
+          const rightIdx = activeConnections[leftIdx];
+          
+          const lNode = document.getElementById(`L${leftIdx}`).getBoundingClientRect();
+          const rNode = document.getElementById(`R${rightIdx}`).getBoundingClientRect();
+          
+          const x1 = lNode.left - boardRect.left + (lNode.width / 2);
+          const y1 = lNode.top - boardRect.top + (lNode.height / 2);
+          const x2 = rNode.left - boardRect.left + (rNode.width / 2);
+          const y2 = rNode.top - boardRect.top + (rNode.height / 2);
+
+          drawBezierCurve(svg, x1, y1, x2, y2, colors[leftIdx]);
+          document.getElementById(`R${rightIdx}`).classList.add('active');
+        } else {
+          for (let r=0; r<4; r++) {
+            if(!Object.values(activeConnections).includes(r)) {
+              document.getElementById(`R${r}`).classList.remove('active');
+            }
+          }
+        }
+      }
+    }
+
+    function drawBezierCurve(svg, x1, y1, x2, y2, color) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      
+      const cpX1 = x1 + 100;
+      const cpY1 = y1;
+      const cpX2 = x2 - 100;
+      const cpY2 = y2;
+
+      path.setAttribute("d", `M ${x1} ${y1} C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${x2} ${y2}`);
+      path.setAttribute("stroke", color);
+      path.setAttribute("stroke-width", "6");
+      path.setAttribute("fill", "transparent");
+      path.setAttribute("stroke-linecap", "round");
+      path.style.filter = "drop-shadow(0px 3px 3px rgba(0,0,0,0.6))";
+      
+      svg.appendChild(path);
+    }
+
+    window.addEventListener('resize', drawWires);
+
+    // ---------------------------------------------------------
+    // 4. WIN CONDITION
+    // ---------------------------------------------------------
+    function checkWinCondition() {
+      // Must have exactly 4 connections to win
+      if (Object.keys(activeConnections).length !== 4) return;
+
+      let isWin = true;
+      for (let i = 0; i < 4; i++) {
+        if (activeConnections[i] !== correctMap[i]) {
+          isWin = false;
+        }
+      }
+
+      if (isWin) {
+        document.getElementById('winOverlay').classList.add('active');
+        const banner = document.getElementById('alertBanner');
+        banner.style.background = "#064e3b";
+        banner.style.borderColor = "var(--green)";
+        banner.style.color = "var(--green)";
+        banner.innerText = "TASK COMPLETED: CIRCUIT RESTORED";
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 5. ARDUINO / ESP32 WEB SERIAL INTEGRATION
+    // ---------------------------------------------------------
+    let serialPort = null;
+    let serialReader = null;
+    let rxAccumulator = "";
+
+    async function connectWebSerial() {
+      try {
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: 115200 });
+
+        const badge = document.getElementById("connStatus");
+        badge.className = "status-badge status-connected";
+        badge.textContent = "HARDWARE CONNECTED";
+        
+        document.getElementById("connectBtn").disabled = true;
+        
+        readSerialStream();
+      } catch (err) {
+        console.warn("Serial connection canceled or failed:", err);
+      }
+    }
+
+    async function readSerialStream() {
+      const textDecoder = new TextDecoderStream();
+      serialPort.readable.pipeTo(textDecoder.writable);
+      serialReader = textDecoder.readable.getReader();
+
+      while (true) {
+        const { value, done } = await serialReader.read();
+        if (done) break;
+        if (value) {
+          rxAccumulator += value;
+          const lines = rxAccumulator.split("\n");
+          rxAccumulator = lines.pop(); // Preserve incomplete chunk
+
+          for (const line of lines) {
+            parseHardwareLine(line.trim());
+          }
+        }
+      }
+    }
+
+    // Expects a string like: "0:2,1:3,2:0,3:1" from Arduino
+    function parseHardwareLine(line) {
+      if (!line || line.indexOf(":") === -1) return;
+      
+      const pairs = line.split(",");
+      const newConnections = {};
+      
+      pairs.forEach(pair => {
+        const parts = pair.split(":");
+        if(parts.length === 2) {
+          const left = parseInt(parts[0]);
+          const right = parseInt(parts[1]);
+          // Only map valid indices 0 through 3
+          if (!isNaN(left) && !isNaN(right) && right >= 0 && right <= 3 && left >= 0 && left <= 3) { 
+            newConnections[left] = right;
+          }
+        }
+      });
+
+      // Update UI only if the hardware state has changed
+      if (JSON.stringify(activeConnections) !== JSON.stringify(newConnections)) {
+        activeConnections = newConnections;
+        drawWires();
+        checkWinCondition();
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 6. INITIALIZATION
+    // ---------------------------------------------------------
+    document.getElementById('resetBtn').addEventListener('click', generateTask);
+    document.getElementById('nextBtn').addEventListener('click', generateTask);
+    document.getElementById('connectBtn').addEventListener('click', connectWebSerial);
+
+    generateTask();
+  </script>
+</body>
+</html>
